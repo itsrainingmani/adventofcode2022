@@ -73,15 +73,6 @@ impl Round {
     }
 }
 
-#[derive(Debug, Clone)]
-struct InvalidMoveError;
-
-impl fmt::Display for InvalidMoveError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "invalid move")
-    }
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Advent of Code 2022 - Day 2");
 
