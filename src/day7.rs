@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet, VecDeque},
     error::Error,
     fs::File,
@@ -7,173 +6,145 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-struct Arena {
-    named: HashMap<String, usize>,
-    nodes: Vec<Dir>,
-}
-
-impl Arena {
-    fn new_node(&mut self, data: Dir) -> usize {
-        // Get the next free index
-        let next_index = self.nodes.len();
-
-        let data_name = data.name.clone();
-
-        // Push the node into the arena
-        self.nodes.push(data);
-        self.named.insert(data_name, next_index);
-
-        // Return the node identifier
-        next_index
-    }
-
-    fn get_parent(&self, cur_id: usize) -> usize {
-        if let Some(x) = self.nodes[cur_id].parent {
-            x
-        } else {
-            0
-        }
-    }
-
-    fn propagate_filesize(&mut self, c_id: usize) {
-        let mut cur_id = c_id.clone();
-        let mut opt_parent = self.nodes[cur_id].parent;
-
-        while opt_parent != None {
-            let nds = &mut self.nodes;
-            let cur_fs = nds[cur_id].file_size.clone();
-
-            let mut parent_dir = &mut nds[opt_parent.unwrap()];
-            parent_dir.file_size += cur_fs;
-
-            cur_id = opt_parent.unwrap();
-            opt_parent = parent_dir.parent;
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 struct Dir {
     name: String,
-    dirs: Vec<usize>,
-    file_size: u64,
-    parent: Option<usize>,
+    dirs: Vec<String>,
+    dir_size: u64,
+    parent: Option<String>,
 }
 
 pub fn main() -> Result<(), Box<dyn Error>> {
-    println!("\nDay 7");
+    println!("\nDay 7 - v2");
 
-    let file = File::open("../inputs/day7-test2.txt")?;
+    let file = File::open("../inputs/day7.txt")?;
     let reader = BufReader::new(file);
 
-    let mut mem_arena = Arena {
-        named: HashMap::new(),
-        nodes: Vec::new(),
-    };
+    let mut in_ls: bool = false;
+    let mut index_map: HashMap<String, usize> = HashMap::new();
+    let mut nodes: Vec<Dir> = Vec::new();
+    let mut cur_idx: usize = nodes.len();
 
     let top_level_dir: Dir = Dir {
         name: "/".to_string(),
         dirs: Vec::new(),
-        file_size: 0u64,
+        dir_size: 0u64,
         parent: None,
     };
-    let mut current_dir_idx: usize = mem_arena.new_node(top_level_dir);
-
-    let mut in_ls: bool = false;
+    nodes.push(top_level_dir);
+    index_map.insert("/".to_string(), cur_idx);
 
     for line in reader.lines().map(|l| l.unwrap()) {
-        // println!("{}", line);
         if line.starts_with("$ cd") {
             in_ls = false;
             let which_dir = (line.split(" ").collect::<Vec<_>>())[2];
+            let cur_node = nodes.get(cur_idx).unwrap();
             if which_dir == "/" {
                 // We are in the root dir
-                // println!("Root Dir");
+                println!("Root Dir");
                 continue;
             } else if which_dir == ".." {
                 // Go back up a dir
-                current_dir_idx = mem_arena.get_parent(current_dir_idx);
+                // println!("Go up ^");
+                let parent = cur_node.parent.clone();
+                match parent {
+                    Some(p) => {
+                        cur_idx = *index_map.get(&p).unwrap();
+                    }
+                    None => cur_idx = 0,
+                }
             } else {
-                current_dir_idx = *mem_arena.named.get(which_dir).unwrap();
+                // println!("Go into {}", which_dir);
+                let dir_name = if cur_node.name == "/" {
+                    which_dir.to_string()
+                } else {
+                    cur_node.name.clone() + "/" + which_dir
+                };
+                let new_dir = Dir {
+                    name: dir_name.clone(),
+                    dirs: Vec::new(),
+                    dir_size: 0u64,
+                    parent: Some(cur_node.name.clone()),
+                };
+                cur_idx = nodes.len();
+                nodes.push(new_dir);
+                index_map.insert(dir_name.clone(), cur_idx);
             }
         } else if line.starts_with("$ ls") {
             in_ls = true;
         } else {
+            let mut cur_node = nodes.get_mut(cur_idx).unwrap();
             // Now we are exploring a directory
             if in_ls {
                 let fs_item: Vec<&str> = line.split(" ").collect();
                 if fs_item[0] == "dir" {
                     // the current dir contains a dir
-                    let dir_name = fs_item[1].to_string();
-                    let new_dir = Dir {
-                        name: dir_name.clone(),
-                        dirs: Vec::new(),
-                        file_size: 0u64,
-                        parent: Some(current_dir_idx),
+                    let dir_name = if cur_node.name == "/" {
+                        fs_item[1].to_string()
+                    } else {
+                        cur_node.name.clone() + "/" + fs_item[1]
                     };
-                    let new_idx = mem_arena.new_node(new_dir);
-                    let current_dir = mem_arena.nodes.get_mut(current_dir_idx).unwrap();
-                    current_dir.dirs.push(new_idx);
+                    cur_node.dirs.push(dir_name.clone());
                 } else {
                     // the fs_item should contain a file size and a filename component
                     let file_size = fs_item[0].parse::<u64>().unwrap();
-
-                    let current_dir = mem_arena.nodes.get_mut(current_dir_idx).unwrap();
-                    current_dir.file_size += file_size;
+                    // println!("{}", file_size);
+                    cur_node.dir_size += file_size;
                 }
             }
         }
     }
 
-    // The root dir will be the first dir in the nodes vec
-    let mut dfs_stack: VecDeque<usize> = VecDeque::new();
+    // println!("{:?}", nodes);
+    // println!("{:?}", index_map);
+
+    let mut dfs_stack: VecDeque<String> = VecDeque::new();
     let mut visited: HashSet<String> = HashSet::new();
 
-    // Create a mutable memory location with dynamically checked borrow rules
-    let mem_arena_rc = RefCell::new(mem_arena);
-    let mem_arena_borrowed = &mut mem_arena_rc.borrow_mut();
-
-    dfs_stack.push_back(0);
+    dfs_stack.push_back("/".to_string());
     while !dfs_stack.is_empty() {
-        let cur_idx = dfs_stack.pop_back().unwrap();
-        let u = mem_arena_borrowed.nodes[cur_idx].clone();
+        let cur_dir = dfs_stack.pop_back().unwrap();
+        let cur_idx = index_map.get(&cur_dir).unwrap();
 
+        let u = nodes[*cur_idx].clone();
         if !visited.contains(&u.name) {
             visited.insert(u.name.clone());
 
-            if u.dirs.len() == 0 {
-                // this is a leaf node
-                // we can propagate the filesizes up the tree
-                mem_arena_borrowed.propagate_filesize(cur_idx);
+            if u.dirs.is_empty() {
+                // leaf node. propagate filesizes
+                let s_dir = u.name.clone();
+                let mut cur_id = index_map.get(&s_dir).unwrap();
+                let mut parent = nodes[*cur_id].parent.clone();
+
+                while parent != None {
+                    let cur_fs = nodes[*cur_id].dir_size;
+                    let parent_idx = index_map.get(&parent.clone().unwrap()).unwrap();
+                    let mut parent_dir = &mut nodes[*parent_idx];
+                    parent_dir.dir_size += cur_fs;
+
+                    cur_id = parent_idx;
+                    parent = parent_dir.parent.clone();
+                }
+
                 continue;
             } else {
-                for d in &u.dirs {
-                    let tmp_dir = &mem_arena_borrowed.nodes[*d];
-                    if !visited.contains(&tmp_dir.name) {
-                        dfs_stack.push_back(*d);
+                for child in u.dirs {
+                    if !visited.contains(&child) {
+                        dfs_stack.push_back(child.clone());
                     }
                 }
             }
         }
     }
 
-    // Filter out dirs with sums greater than 100k and then sum
     let mut fs_total_sum: u64 = 0;
-    for n in &mem_arena_borrowed.nodes {
+    for n in nodes {
         // println!("{:?}", n);
-        if n.file_size <= 100000u64 {
-            fs_total_sum += n.file_size;
+        if n.dir_size <= 100000u64 {
+            fs_total_sum += n.dir_size;
         }
     }
-
-    println!("{:?}", fs_total_sum);
-
-    // let mut test_cur_id: usize = 2;
-    // mem_arena.propagate_filesize(test_cur_id);
-    // test_cur_id = 3;
-    // mem_arena.propagate_filesize(test_cur_id);
-
-    // println!("{:?} - \n{}", mem_arena, test_cur_id);
+    // 1453349
+    println!("\tPart 1  - {:?}", fs_total_sum);
 
     Ok(())
 }
