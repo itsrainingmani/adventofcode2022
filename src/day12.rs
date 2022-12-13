@@ -3,8 +3,7 @@ mod tests {
     #[test]
     fn check_bounds() {
         let input = read_to_string("inputs/day12-test.txt").unwrap();
-        let mut hill_map = HeightMap::new(input);
-        let visited: Array2<u8> = Array2::zeros((5, 8));
+        let hill_map = HeightMap::new(input);
 
         assert_eq!(hill_map.get_adj((0, 0)), Some(vec![(0, 1), (1, 0)]));
         // assert_eq!(hill_map.get_adj((0, 4)), Some(vec![(0, 5), (0, 3)]));
@@ -52,7 +51,7 @@ impl HeightMap {
         let height = tmp_grd.len();
         let width = tmp_grd[0].len();
 
-        let mut grid = Array2::from_shape_vec(
+        let grid = Array2::from_shape_vec(
             (height, width),
             tmp_grd.iter().flatten().map(|c| *c).collect::<Vec<char>>(),
         )
@@ -90,40 +89,21 @@ impl HeightMap {
     fn get_adj(&self, (i, j): (usize, usize)) -> Option<Vec<(usize, usize)>> {
         let height_at_pos = self.grid.get((i, j)).unwrap();
         let mut adj_nodes = Vec::<(usize, usize)>::new();
-        let mut positions_to_check = Vec::<(usize, usize)>::new();
+        let mut positions_to_check = Vec::<(i8, i8)>::new();
 
-        if j == 0 {
-            positions_to_check.push((i, j + 1));
-            if i == 0 {
-                positions_to_check.push((i + 1, j));
-            } else if i == self.grid.dim().0 - 1 {
-                positions_to_check.push((i - 1, j));
-            } else {
-                positions_to_check.push((i + 1, j));
-                positions_to_check.push((i - 1, j));
-            }
-        } else if j == (self.grid.dim().1 - 1) {
-            positions_to_check.push((i, j - 1));
-            if i == 0 {
-                positions_to_check.push((i + 1, j));
-            } else if i == self.grid.dim().0 - 1 {
-                positions_to_check.push((i - 1, j));
-            } else {
-                positions_to_check.push((i + 1, j));
-                positions_to_check.push((i - 1, j));
-            }
-        } else {
-            positions_to_check.push((i, j + 1));
-            positions_to_check.push((i, j - 1));
-            if i == 0 {
-                positions_to_check.push((i + 1, j));
-            } else if i == self.grid.dim().0 - 1 {
-                positions_to_check.push((i - 1, j));
-            } else {
-                positions_to_check.push((i + 1, j));
-                positions_to_check.push((i - 1, j));
-            }
-        }
+        positions_to_check.push((i as i8, j as i8 + 1));
+        positions_to_check.push((i as i8, j as i8 - 1));
+        positions_to_check.push((i as i8 + 1 as i8, j as i8));
+        positions_to_check.push((i as i8 - 1, j as i8));
+
+        let positions_to_check: Vec<(usize, usize)> = positions_to_check
+            .iter()
+            .filter(|(x, y)| {
+                *x >= 0 && *y >= 0 && *x != self.height as i8 && *y != self.width as i8
+            })
+            .map(|(x, y)| (*x, *y))
+            .map(|(x, y)| (x as usize, y as usize))
+            .collect();
 
         if positions_to_check.len() > 0 {
             for pos in positions_to_check {
@@ -240,7 +220,7 @@ fn process_part2() -> Result<(), Box<dyn Error>> {
 
 pub fn main() -> Result<(), Box<dyn Error>> {
     process_part1()?;
-    process_part2()?;
+    // process_part2()?;
 
     Ok(())
 }
