@@ -83,86 +83,26 @@ fn print_grid(sense_map: HashMap<Pos, Pos>) {
     }
 }
 
-fn top_right_border(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
-    let radius = manhattan_distance(sensor, beacon);
-    // println!("PERIMITER sensor - {:?} | beacon - {:?}", sensor, beacon);
-    Border {
-        line: ((sensor.x - radius - 1)..=(sensor.x))
-            .zip((sensor.y)..=(sensor.y + radius + 1))
-            .filter(|(x, y)| {
-                *x >= 0
-                    && *x <= max_val
-                    && *y >= 0
-                    && *y <= max_val
-                    && manhattan_distance(sensor, Pos { x: *x, y: *y }) - radius == 1
-            })
-            .map(|(x, y)| Pos { x, y })
-            .collect::<Vec<Pos>>(),
-    }
-}
-
-fn top_left_border(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
-    let radius = manhattan_distance(sensor, beacon);
-    Border {
-        line: ((sensor.x - radius - 1)..=(sensor.x))
-            .zip((sensor.y - radius - 1)..=(sensor.y))
-            .filter(|(x, y)| {
-                *x >= 0
-                    && *x <= max_val
-                    && *y >= 0
-                    && *y <= max_val
-                    && manhattan_distance(sensor, Pos { x: *x, y: *y }) - radius == 1
-            })
-            .map(|(x, y)| Pos { x, y })
-            .collect::<Vec<Pos>>(),
-    }
-}
-
-fn bottom_right_border(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
-    let radius = manhattan_distance(sensor, beacon) as i32;
-    Border {
-        line: ((sensor.x)..=(sensor.x + radius + 1))
-            .zip((sensor.y)..=(sensor.y + radius + 1))
-            .filter(|(x, y)| {
-                *x >= 0
-                    && *x <= max_val
-                    && *y >= 0
-                    && *y <= max_val
-                    && manhattan_distance(sensor, Pos { x: *x, y: *y }) - radius == 1
-            })
-            .map(|(x, y)| Pos { x, y })
-            .collect::<Vec<Pos>>(),
-    }
-}
-
-fn bottom_left_border(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
-    let radius = manhattan_distance(sensor, beacon);
-    Border {
-        line: ((sensor.x)..=(sensor.x + radius + 1))
-            .zip((sensor.y - radius as i32 - 1)..=(sensor.y))
-            .filter(|(x, y)| {
-                *x >= 0
-                    && *x <= max_val
-                    && *y >= 0
-                    && *y <= max_val
-                    && manhattan_distance(sensor, Pos { x: *x, y: *y }) - radius == 1
-            })
-            .map(|(x, y)| Pos { x, y })
-            .collect::<Vec<Pos>>(),
-    }
-}
-
 fn perimeter(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
-    let mut top_right = top_right_border(sensor, beacon, max_val);
-    let top_left = top_left_border(sensor, beacon, max_val);
-    let bottom_right = bottom_right_border(sensor, beacon, max_val);
-    let bottom_left = bottom_left_border(sensor, beacon, max_val);
-
-    top_right.line.extend(top_left.line);
-    top_right.line.extend(bottom_left.line);
-    top_right.line.extend(bottom_right.line);
+    // let mut top_right = top_right_border(sensor, beacon, max_val);
+    let radius = manhattan_distance(sensor, beacon);
+    let mut top_right = ((sensor.x - radius - 1)..=(sensor.x))
+        .zip((sensor.y)..=(sensor.y + radius + 1))
+        .collect::<Vec<(i32, i32)>>();
 
     top_right
+        .extend(((sensor.x - radius - 1)..=(sensor.x)).zip((sensor.y - radius - 1)..=(sensor.y)));
+    top_right
+        .extend(((sensor.x)..=(sensor.x + radius + 1)).zip((sensor.y)..=(sensor.y + radius + 1)));
+    top_right.extend(
+        ((sensor.x)..=(sensor.x + radius + 1)).zip((sensor.y - radius as i32 - 1)..=(sensor.y)),
+    );
+    let top_right = top_right
+        .iter()
+        .filter(|(x, y)| *x >= 0 && *x <= max_val && *y >= 0 && *y <= max_val)
+        .map(|(x, y)| Pos { x: *x, y: *y })
+        .collect::<Vec<Pos>>();
+    Border { line: top_right }
 }
 
 fn process_part1() -> Result<(), Box<dyn Error>> {
@@ -250,7 +190,6 @@ fn process_part2() -> Result<(), Box<dyn Error>> {
             sense_map.insert(sensor_indices(&caps, line), beacon_indices(&caps, line));
         }
     }
-    let mut border_pairs: Vec<(Border, Border)> = vec![];
 
     for (&sensor, &beacon) in sense_map.iter() {
         let perimeter = perimeter(sensor, beacon, max_val);
