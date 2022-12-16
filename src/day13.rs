@@ -73,32 +73,3 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     process_part2()?;
     Ok(())
 }
-
-mod test {
-    use super::*;
-
-    #[test]
-    fn check_packets() {
-        let mut lhs: Value = serde_json::from_str("[[1],[2,3,4]]").unwrap();
-        let mut rhs: Value = serde_json::from_str("[[1],4]").unwrap();
-        assert_eq!(compare(lhs, rhs), true);
-
-        println!("\n");
-
-        lhs = serde_json::from_str("[1,[2,[3,[4,[5,6,7]]]],8,9]").unwrap();
-        rhs = serde_json::from_str("[1,[2,[3,[4,[5,6,0]]]],8,9]").unwrap();
-        assert_eq!(compare(lhs, rhs), false);
-
-        lhs = serde_json::from_str("[[[]]]").unwrap();
-        rhs = serde_json::from_str("[[]]").unwrap();
-        assert_eq!(compare(lhs, rhs), false);
-
-        lhs = serde_json::from_str("[9]").unwrap();
-        rhs = serde_json::from_str("[[8,7,6]]").unwrap();
-        assert_eq!(compare(lhs, rhs), false);
-
-        lhs = serde_json::from_str("[8, 1]").unwrap();
-        rhs = serde_json::from_str("[[[9]]]").unwrap();
-        assert_eq!(compare(lhs, rhs), true);
-    }
-}
