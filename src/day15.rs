@@ -17,6 +17,12 @@ struct Border {
     line: Vec<Pos>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct LineSegment {
+    start: Pos,
+    end: Pos,
+}
+
 fn sensor_indices(caps: &Captures, line: &str) -> Pos {
     let col = caps.name("col").unwrap();
     let row = caps.name("row").unwrap();
@@ -105,6 +111,31 @@ fn perimeter(sensor: Pos, beacon: Pos, max_val: i32) -> Border {
     Border { line: top_right }
 }
 
+fn intersection_float(l1: LineSegment, l2: LineSegment) -> Option<(f32, f32)> {
+    let s1_x: f32 = (l1.end.x - l1.start.x) as f32;
+    let s1_y: f32 = (l1.end.y - l1.start.y) as f32;
+    let s2_x: f32 = (l2.end.x - l2.start.x) as f32;
+    let s2_y: f32 = (l2.end.y - l2.start.y) as f32;
+
+    let s: f32 = (-s1_y * (l1.start.x - l2.start.x) as f32
+        + s1_x * (l1.start.y - l2.start.y) as f32)
+        / (-s2_x * s1_y + s1_x * s2_y);
+    let t: f32 = (s2_x * (l1.start.y - l2.start.y) as f32
+        - s2_y * (l1.start.x - l2.start.x) as f32)
+        / (-s2_x * s1_y + s1_x * s2_y);
+    if s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0 {
+        let i_x = l1.start.x as f32 + (t * s1_x);
+        let i_y = l1.start.y as f32 + (t * s1_y);
+        return Some((i_x, i_y));
+    }
+
+    None
+}
+
+fn same_signs(a: i32, b: i32) -> bool {
+    a ^ b >= 0
+}
+
 fn process_part1() -> Result<(), Box<dyn Error>> {
     // let input = read_to_string("inputs-test/day15.txt")?;
     // let row_to_match = 10;
@@ -153,7 +184,6 @@ fn process_part1() -> Result<(), Box<dyn Error>> {
     }
 
     row_intercepts.sort_by(|a, b| a.0.y.partial_cmp(&b.0.y).unwrap());
-    println!("{:?}", row_intercepts);
     let mut farthest_left = i32::MIN;
 
     for (left, right) in row_intercepts {
@@ -215,8 +245,8 @@ fn process_part2() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn main() -> Result<(), Box<dyn Error>> {
-    // process_part1()?;
-    process_part2()?;
+    process_part1()?;
+    // process_part2()?;
     Ok(())
 }
 
@@ -233,5 +263,18 @@ mod test {
 
         println!("{:?}", (row_watch, linter));
         println!("{:?}", (row_watch, rinter));
+    }
+
+    #[test]
+    fn check_line_intersection() {
+        let l1 = LineSegment {
+            start: Pos { x: 2, y: 2 },
+            end: Pos { x: 5, y: 5 },
+        };
+        let l2 = LineSegment {
+            start: Pos { x: 2, y: 5 },
+            end: Pos { x: 5, y: 2 },
+        };
+        println!("{:?}", intersection_float(l1, l2));
     }
 }
